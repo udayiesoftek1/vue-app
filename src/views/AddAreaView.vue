@@ -1,47 +1,14 @@
 <template>
-  <div style="width: 100%">
-    <h1>Areas</h1>
-    <div id="mapdiv" style="width: 100%; height: 500px"></div>
-    <div style="display: flex; margin-top: 20px">
-      <button @click="showAddModal = true" style="margin-left: auto">Add area</button>
+  <div class="my-dialog">
+    <div class="dialog-content">
+      <h2>Add Area</h2>
+      <input type="text" v-model="areaName" placeholder="Area Name" />
+      <div id="addModalMap" style="width: 100%; height: 500px"></div>
+      <div class="buttons">
+        <button @click="closeModal">Close</button>
+        <button @click="addArea">Confirm</button>
+      </div>
     </div>
-    <table style="width: 100%">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Edit</th>
-          <th>Delete</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(item, index) in areas" :key="index">
-          <td>{{ item.name }}</td>
-          <td>
-            <button
-              @click="openEditModal(item)"
-              style="background: none; color: white; border: none"
-            >
-              <FontAwesomeIcon :icon="['fas', 'pencil']" />
-            </button>
-          </td>
-          <td>
-            <button
-              @click="deleteArea(item.id)"
-              style="background: none; color: white; border: none"
-            >
-              <FontAwesomeIcon :icon="['fas', 'trash']" />
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <AddAreaModal v-if="showAddModal" :show="showAddModal" :closeModal="closeModal"></AddAreaModal>
-    <EditAreaModal
-      v-if="showEditModal"
-      :area="area"
-      :show="showEditModal"
-      :closeModal="closeModal"
-    ></EditAreaModal>
   </div>
 </template>
 
@@ -58,13 +25,9 @@ import {
 } from 'firebase/firestore'
 import { ref, computed, watch } from 'vue'
 import { Loader } from '@googlemaps/js-api-loader'
-import AddAreaModal from './AddAreaView.vue'
-import EditAreaModal from './EditAreaView.vue'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-
-const showAddModal = ref(false)
-const showEditModal = ref(false)
+const showDialog = ref(false)
 let areaLatLng = {}
+
 const map = ref(null)
 const loader = new Loader({
   apiKey: 'AIzaSyDczHPeAO1YHkom6QG66rPZfwLwth0WqX4',
@@ -72,6 +35,7 @@ const loader = new Loader({
   libraries: ['drawing', 'maps']
 })
 const apiPromise = loader.load()
+
 const db = getFirestore()
 
 function polygonCenter(poly) {
@@ -107,11 +71,12 @@ function getRandomColor() {
 
 let areaName = ''
 export default {
-  components: {
-    AddAreaModal,
-    EditAreaModal,
-    FontAwesomeIcon
+  props: {
+    isOpen: Boolean,
+    closeModal: Function,
+    showDialog: Boolean
   },
+  components: {},
   data() {
     return {
       center: { lat: 40.689247, lng: -74.044502 },
@@ -120,33 +85,26 @@ export default {
       areas: [],
       apiPromise,
       map,
-      showAddModal,
-      showEditModal,
-      area: {},
       areaName
     }
   },
   created() {
-    this.fetchAreas()
+    this.fetchTodos()
     this.subscribeToTodos()
   },
   methods: {
-    closeModal() {
-      this.showAddModal = false
-      this.showEditModal = false
-      this.fetchAreas()
-    },
     subscribeToTodos() {
       const todosRef = collection(db, 'todos')
       onSnapshot(todosRef, (querySnapshot) => {
         this.todos = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       })
     },
-    async fetchAreas() {
+    async fetchTodos() {
       try {
         const todosRef = collection(db, 'areas')
         const querySnapshot = await getDocs(todosRef)
         this.areas = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        console.log('areas: ', this.areas)
         apiPromise.then((google) => {
           var drawingManager = new google.maps.drawing.DrawingManager({
             drawingMode: google.maps.drawing.OverlayType.POLYGON,
@@ -174,8 +132,10 @@ export default {
             fullscreenControl: false,
             center: new google.maps.LatLng(17.3944809, 78.4417806)
           }
-          let mp = new google.maps.Map(document.getElementById('mapdiv'), mapOptions)
+          console.log('map: ', document.getElementById('addModalMap'))
+          let mp = new google.maps.Map(document.getElementById('addModalMap'), mapOptions)
           drawingManager.setMap(mp)
+          console.log('areasss: ', this.areas)
           this.areas.forEach(function (element, index) {
             try {
               var center = polygonCenter(element.latLngObj)
@@ -211,25 +171,41 @@ export default {
               }
             })
           })
+          google.maps.event.addListener(drawingManager, 'polygoncomplete', function (polygon) {
+            drawingManager.setMap(null)
+            var polygonArr = []
+            for (var i = 0; i < polygon.getPath().getLength(); i++) {
+              var pointPair = polygon.getPath().getAt(i).toUrlValue(6)
+              polygonArr.push(pointPair)
+            }
+            polygonArr = polygonArr.map((e) => {
+              let splits = e.split(',')
+              return {
+                lat: splits[0],
+                lng: splits[1]
+              }
+            })
+            areaLatLng = polygonArr
+            showDialog.value = true // Show dialog when polygon is drawn
+          })
         })
       } catch (error) {
         console.error('Error fetching todos:', error)
       }
     },
-    async deleteArea(id) {
+    async addArea() {
       try {
-        if (confirm('Do you want to delete the area')) {
-          await deleteDoc(doc(db, 'areas', id))
-          this.fetchAreas()
-          console.log('Area deleted successfully!')
-        }
+        const randomId = Math.random().toString(36).substring(2) // Generate random ID
+        await setDoc(doc(db, 'areas', randomId), {
+          name: this.areaName,
+          latLngObj: areaLatLng
+        })
+        this.areaName = ''
+        console.log('Area added successfully!')
+        this.closeModal()
       } catch (error) {
-        console.error('Error deleting area:', error)
+        console.error('Error adding todo:', error)
       }
-    },
-    openEditModal(e) {
-      this.showEditModal = true
-      this.area = e
     }
   }
 }
@@ -249,6 +225,7 @@ export default {
 }
 
 .dialog-content {
+  width: 900px;
   background-color: white;
   padding: 20px;
   color: black;
