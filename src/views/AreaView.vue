@@ -1,13 +1,13 @@
 <template>
   <div style="width: 100%">
     <h1>Areas</h1>
-    <div id="mapdiv" style="width: 100%; height: 500px"></div>
-    <div style="display: flex; margin-top: 20px">
+    <div id="mapdiv" style="width: 100%; height: 500px; margin-top: 10px"></div>
+    <div style="display: flex; margin-top: 30px">
       <button @click="showAddModal = true" style="margin-left: auto">Add area</button>
     </div>
-    <table style="width: 100%">
+    <table style="width: 100%; margin-top: 15px" border="1">
       <thead>
-        <tr>
+        <tr style="background: #e3e3e3">
           <th>Name</th>
           <th>Edit</th>
           <th>Delete</th>
@@ -15,20 +15,14 @@
       </thead>
       <tbody>
         <tr v-for="(item, index) in areas" :key="index">
-          <td>{{ item.name }}</td>
-          <td>
-            <button
-              @click="openEditModal(item)"
-              style="background: none; color: white; border: none"
-            >
+          <td width="80%">{{ item.name }}</td>
+          <td width="10%">
+            <button @click="openEditModal(item)" style="background: none; border: none">
               <FontAwesomeIcon :icon="['fas', 'pencil']" />
             </button>
           </td>
-          <td>
-            <button
-              @click="deleteArea(item.id)"
-              style="background: none; color: white; border: none"
-            >
+          <td width="10%">
+            <button @click="deleteArea(item.id)" style="background: none; border: none">
               <FontAwesomeIcon :icon="['fas', 'trash']" />
             </button>
           </td>
@@ -75,25 +69,17 @@ const apiPromise = loader.load()
 const db = getFirestore()
 
 function polygonCenter(poly) {
-  var lowx,
-    highx,
-    lowy,
-    highy,
-    lats = [],
-    lngs = [],
-    vertices = poly
-  for (var i = 0; i < vertices.length; i++) {
-    lngs.push(vertices[i].lng)
-    lats.push(vertices[i].lat)
-  }
-  lats.sort()
-  lngs.sort()
-  lowx = lats[0]
-  highx = lats[vertices.length - 1]
-  lowy = lngs[0]
-  highy = lngs[vertices.length - 1]
+  var lats = poly.map((point) => point.lat)
+  var lngs = poly.map((point) => point.lng)
+
+  var lowx = Math.min(...lats)
+  var highx = Math.max(...lats)
+  var lowy = Math.min(...lngs)
+  var highy = Math.max(...lngs)
+
   var center_x = lowx + (highx - lowx) / 2
   var center_y = lowy + (highy - lowy) / 2
+
   return { lat: center_x, lng: center_y }
 }
 function getRandomColor() {
@@ -148,23 +134,6 @@ export default {
         const querySnapshot = await getDocs(todosRef)
         this.areas = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
         apiPromise.then((google) => {
-          var drawingManager = new google.maps.drawing.DrawingManager({
-            drawingMode: google.maps.drawing.OverlayType.POLYGON,
-            drawingControl: true,
-            drawingControlOptions: {
-              position: google.maps.ControlPosition.TOP_CENTER,
-              drawingModes: [google.maps.drawing.OverlayType.POLYGON]
-            },
-            polygonOptions: {
-              fillColor: '#BCDCF9',
-              fillOpacity: 0.5,
-              strokeWeight: 3,
-              strokeColor: '#57ACF9',
-              clickable: false,
-              editable: true,
-              zIndex: 1
-            }
-          })
           var mapOptions = {
             zoom: 13,
             mapTypeId: google.maps.MapTypeId.ROADMAP,
@@ -175,7 +144,6 @@ export default {
             center: new google.maps.LatLng(17.3944809, 78.4417806)
           }
           let mp = new google.maps.Map(document.getElementById('mapdiv'), mapOptions)
-          drawingManager.setMap(mp)
           this.areas.forEach(function (element, index) {
             try {
               var center = polygonCenter(element.latLngObj)
@@ -201,6 +169,7 @@ export default {
               fillOpacity: 0.2
             })
             polygonObj.setMap(mp)
+            console.log('element.name: ', center)
             var marker = new google.maps.Marker({
               map: mp,
               position: center,
@@ -260,7 +229,18 @@ export default {
   display: flex;
   justify-content: flex-end;
 }
-
+td,
+th {
+  text-align: center;
+  border: none;
+}
+th {
+  font-size: 16px;
+  font-weight: 600;
+}
+h1 {
+  text-align: center;
+}
 button {
   margin-left: 10px;
 }

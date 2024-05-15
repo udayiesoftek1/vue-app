@@ -1,9 +1,10 @@
 <template>
   <div class="my-dialog">
     <div class="dialog-content">
-      <h2>Edit Area</h2>
+      <h2 style="text-align: center">Edit Area</h2>
+      <label for="AreaName" style="margin-right: 10px"> Area Name</label>
       <input type="text" v-model="areaName" placeholder="Area Name" />
-      <div id="addModalMap" style="width: 100%; height: 500px"></div>
+      <div id="addModalMap" style="width: 100%; height: 500px; margin-top: 10px"></div>
       <div class="buttons">
         <button @click="closeModal">Close</button>
         <button @click="editArea">Confirm</button>
@@ -39,25 +40,17 @@ const apiPromise = loader.load()
 const db = getFirestore()
 
 function polygonCenter(poly) {
-  var lowx,
-    highx,
-    lowy,
-    highy,
-    lats = [],
-    lngs = [],
-    vertices = poly
-  for (var i = 0; i < vertices.length; i++) {
-    lngs.push(vertices[i].lng)
-    lats.push(vertices[i].lat)
-  }
-  lats.sort()
-  lngs.sort()
-  lowx = lats[0]
-  highx = lats[vertices.length - 1]
-  lowy = lngs[0]
-  highy = lngs[vertices.length - 1]
+  var lats = poly.map((point) => point.lat)
+  var lngs = poly.map((point) => point.lng)
+
+  var lowx = Math.min(...lats)
+  var highx = Math.max(...lats)
+  var lowy = Math.min(...lngs)
+  var highy = Math.max(...lngs)
+
   var center_x = lowx + (highx - lowx) / 2
   var center_y = lowy + (highy - lowy) / 2
+
   return { lat: center_x, lng: center_y }
 }
 function getRandomColor() {
