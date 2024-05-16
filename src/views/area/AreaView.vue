@@ -3,32 +3,20 @@
     <h1>Areas</h1>
     <div id="mapdiv" style="width: 100%; height: 500px; margin-top: 10px"></div>
     <div style="display: flex; margin-top: 30px">
-      <button @click="showAddModal = true" style="margin-left: auto">Add area</button>
+      <Button
+        label="Add area"
+        @click="showAddModal = true"
+        style="margin-left: auto; margin-bottom: 10px"
+      />
     </div>
-    <table style="width: 100%; margin-top: 15px" border="1">
-      <thead>
-        <tr style="background: #e3e3e3">
-          <th>Name</th>
-          <th>Edit</th>
-          <th>Delete</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(item, index) in areas" :key="index">
-          <td width="80%">{{ item.name }}</td>
-          <td width="10%">
-            <button @click="openEditModal(item)" style="background: none; border: none">
-              <FontAwesomeIcon :icon="['fas', 'pencil']" />
-            </button>
-          </td>
-          <td width="10%">
-            <button @click="deleteArea(item.id)" style="background: none; border: none">
-              <FontAwesomeIcon :icon="['fas', 'trash']" />
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <ag-grid-vue
+      :rowData="areas"
+      :columnDefs="colDefs"
+      :defaultColDef="defaultColDef"
+      style="height: 500px"
+      class="ag-theme-quartz"
+      @cell-clicked="onCellClicked"
+    />
     <AddAreaModal v-if="showAddModal" :show="showAddModal" :closeModal="closeModal"></AddAreaModal>
     <EditAreaModal
       v-if="showEditModal"
@@ -40,28 +28,19 @@
 </template>
 
 <script>
-import firebase from '../firebaseConfig.js'
-import {
-  getFirestore,
-  doc,
-  collection,
-  getDocs,
-  onSnapshot,
-  setDoc,
-  deleteDoc
-} from 'firebase/firestore'
-import { ref, computed, watch } from 'vue'
+import firebase from '../../firebaseConfig'
+import { getFirestore, doc, collection, getDocs, onSnapshot, deleteDoc } from 'firebase/firestore'
+import { ref } from 'vue'
 import { Loader } from '@googlemaps/js-api-loader'
 import AddAreaModal from './AddAreaView.vue'
 import EditAreaModal from './EditAreaView.vue'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { AgGridVue } from 'ag-grid-vue3'
 
 const showAddModal = ref(false)
 const showEditModal = ref(false)
-let areaLatLng = {}
 const map = ref(null)
 const loader = new Loader({
-  apiKey: 'AIzaSyDczHPeAO1YHkom6QG66rPZfwLwth0WqX4',
+  apiKey: 'AIzaSyARck_Y7n98H1AyuneWglswzySsTrzF5bk',
   version: 'weekly',
   libraries: ['drawing', 'maps']
 })
@@ -96,7 +75,7 @@ export default {
   components: {
     AddAreaModal,
     EditAreaModal,
-    FontAwesomeIcon
+    AgGridVue
   },
   data() {
     return {
@@ -109,24 +88,68 @@ export default {
       showAddModal,
       showEditModal,
       area: {},
-      areaName
+      areaName,
+      colDefs: [
+        {
+          field: 'name',
+          cellStyle: { 'text-align': 'left' }
+        },
+        {
+          field: 'edit',
+          cellRenderer: this.editRenderer,
+          maxWidth: 100,
+          cellStyle: { 'text-align': 'center' }
+        },
+        {
+          field: 'delete',
+          maxWidth: 100,
+          cellRenderer: this.deleteRenderer,
+          cellStyle: { 'text-align': 'center' },
+          cellRendererParams: {
+            onClick: (params) => {
+              console.log('param: ', params)
+              this.deleteArea(params.data.id)
+            }
+          }
+        }
+      ],
+      defaultColDef: {
+        flex: 1,
+        minWidth: 150,
+        filter: true,
+        sortable: true,
+        resizable: true
+      }
     }
   },
   created() {
     this.fetchAreas()
-    this.subscribeToTodos()
   },
   methods: {
+    onCellClicked(params) {
+      console.log('parasm: ', params)
+      if (params.column.colId === 'edit') {
+        this.openEditModal(params.data)
+      } else if (params.column.colId === 'delete') {
+        this.deleteArea(params.data.id)
+      }
+    },
+    deleteRenderer(params) {
+      console.log('params: ', params)
+      return `
+        <button @click="deleteArea('${params.data.id}')" style="background: none; border: none">
+            <i class="fa fa-trash-alt" style="color:red"></i>                </button>`
+    },
+    editRenderer(params) {
+      console.log('params: ', params)
+      return `
+        <button @click="editArea('${params.data.id}')" style="background: none; border: none">
+            <svg style="width: 15px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M410.3 231l11.3-11.3-33.9-33.9-62.1-62.1L291.7 89.8l-11.3 11.3-22.6 22.6L58.6 322.9c-10.4 10.4-18 23.3-22.2 37.4L1 480.7c-2.5 8.4-.2 17.5 6.1 23.7s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L387.7 253.7 410.3 231zM160 399.4l-9.1 22.7c-4 3.1-8.5 5.4-13.3 6.9L59.4 452l23-78.1c1.4-4.9 3.8-9.4 6.9-13.3l22.7-9.1v32c0 8.8 7.2 16 16 16h32zM362.7 18.7L348.3 33.2 325.7 55.8 314.3 67.1l33.9 33.9 62.1 62.1 33.9 33.9 11.3-11.3 22.6-22.6 14.5-14.5c25-25 25-65.5 0-90.5L453.3 18.7c-25-25-65.5-25-90.5 0zm-47.4 168l-144 144c-6.2 6.2-16.4 6.2-22.6 0s-6.2-16.4 0-22.6l144-144c6.2-6.2 16.4-6.2 22.6 0s6.2 16.4 0 22.6z"/></svg>                           </button>`
+    },
     closeModal() {
       this.showAddModal = false
       this.showEditModal = false
       this.fetchAreas()
-    },
-    subscribeToTodos() {
-      const todosRef = collection(db, 'todos')
-      onSnapshot(todosRef, (querySnapshot) => {
-        this.todos = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      })
     },
     async fetchAreas() {
       try {
@@ -205,18 +228,6 @@ export default {
 </script>
 
 <style scoped>
-.my-dialog {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
 .dialog-content {
   background-color: white;
   padding: 20px;

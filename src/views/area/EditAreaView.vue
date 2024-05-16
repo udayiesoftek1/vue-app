@@ -1,20 +1,31 @@
 <template>
   <div class="my-dialog">
     <div class="dialog-content">
-      <h2 style="text-align: center">Edit Area</h2>
-      <label for="AreaName" style="margin-right: 10px"> Area Name</label>
-      <input type="text" v-model="areaName" placeholder="Area Name" />
-      <div id="addModalMap" style="width: 100%; height: 500px; margin-top: 10px"></div>
+      <div class="dialog-header">
+        <h2>Edit Area</h2>
+        <button @click="closeModal" style="background: none; border: none">
+          <FontAwesomeIcon :icon="['fas', 'x']" />
+        </button>
+      </div>
+      <label for="AreaName" style="margin-right: 10px; font-size: 16px"> Area Name</label>
+      <InputText id="areaName" v-model="areaName" aria-describedby="" placeholder="Area Name" />
+      <div id="addModalMap" style="width: 100%; height: 350px; margin-top: 25px"></div>
       <div class="buttons">
-        <button @click="closeModal">Close</button>
-        <button @click="editArea">Confirm</button>
+        <Button
+          @click="closeModal"
+          label="Close"
+          severity="contrast"
+          outlined
+          style="margin-right: auto; margin-left: 0"
+        />
+        <Button @click="editArea" label="Submit" />
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import firebase from '../firebaseConfig.js'
+import firebase from '../../firebaseConfig'
 import {
   getFirestore,
   doc,
@@ -31,7 +42,7 @@ let areaLatLng = []
 
 const map = ref(null)
 const loader = new Loader({
-  apiKey: 'AIzaSyDczHPeAO1YHkom6QG66rPZfwLwth0WqX4',
+  apiKey: 'AIzaSyARck_Y7n98H1AyuneWglswzySsTrzF5bk',
   version: 'weekly',
   libraries: ['drawing', 'maps']
 })
@@ -184,6 +195,7 @@ export default {
                 })
                 console.log('poolygonArr: ', polygonArr)
                 areaLatLng = polygonArr
+                console.log('areaLatLng: ', areaLatLng)
               })
             }
           })
@@ -195,11 +207,16 @@ export default {
     async editArea() {
       try {
         console.log('this.areas: ', this.areas)
+        if (!areaLatLng || areaLatLng.length === 0) {
+          console.log('return: ', areaLatLng)
+          return
+        }
         await setDoc(doc(db, 'areas', this.area.id), {
           name: this.areaName,
           latLngObj: areaLatLng
         })
         this.areaName = ''
+        areaLatLng = []
         console.log('Area edited successfully!')
         this.closeModal()
       } catch (error) {
@@ -224,7 +241,7 @@ export default {
 }
 
 .dialog-content {
-  width: 900px;
+  width: 800px;
   background-color: white;
   padding: 20px;
   color: black;
@@ -236,7 +253,14 @@ export default {
   display: flex;
   justify-content: flex-end;
 }
+.dialog-header {
+  display: flex;
+}
 
+.dialog-header h2 {
+  width: 100%;
+  text-align: center;
+}
 button {
   margin-left: 10px;
 }

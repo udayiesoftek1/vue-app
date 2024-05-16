@@ -30,7 +30,7 @@ const router = createRouter({
         {
             path: '/area',
             name: 'area',
-            component: () => import('../views/AreaView.vue')
+            component: () => import('../views/area/AreaView.vue')
         }
     ]
 })
